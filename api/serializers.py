@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import Doctor, Appointment
 from typing import Dict, Any
+from .utils.slot_utils import get_available_slots
+from django.db import transaction, IntegrityError
+
 
 
 class DoctorSerializer(serializers.ModelSerializer):
@@ -21,9 +24,21 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     # Custom validation to prevent double booking
     def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate that the selected time slot is available for the doctor on the given date."""
         doctor = data['doctor']
         date = data['date']
         time_slot = data['time_slot']
+
+        available_slots = get_available_slots(doctor, date)
+        if not available_slots:
+            raise serializers.ValidationError({
+            "time_slot": "Doctor is not available on this day."
+            })
+        
+        if time_slot not in available_slots:
+            raise serializers.ValidationError({
+                "time_slot": "This slot is not available."
+            })
 
         if Appointment.objects.filter(
             doctor=doctor,
@@ -36,3 +51,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
             })
 
         return data
+    
+
+    def create(self, validated_data):
+        """Override create method to handle potential race conditions when booking appointments."""
+        try:
+            with transaction.atomic():
+                appointment = Appointment.objects.create(**validated_data)
+                return appointment
+        except IntegrityError:
+            raise serializers.ValidationError({
+                "time_slot": "This slot has already been booked. Please choose another slot."
+            })
