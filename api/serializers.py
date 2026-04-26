@@ -22,34 +22,18 @@ class AppointmentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'status']
         validators = []
 
-    # Custom validation to prevent double booking
+    # # Custom validation to ensure doctor is available on the selected date.
     def validate(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate that the selected time slot is available for the doctor on the given date."""
         doctor = data['doctor']
         date = data['date']
-        time_slot = data['time_slot']
 
         available_slots = get_available_slots(doctor, date)
         if not available_slots:
             raise serializers.ValidationError({
-            "time_slot": "Doctor is not available on this day."
+            "time_slot": f"Doctor is not available on this day {date}."
             })
         
-        if time_slot not in available_slots:
-            raise serializers.ValidationError({
-                "time_slot": "This slot is not available."
-            })
-
-        if Appointment.objects.filter(
-            doctor=doctor,
-            date=date,
-            time_slot=time_slot,
-            status=Appointment.Status.CONFIRMED
-        ).exists():
-            raise serializers.ValidationError({
-                "time_slot": f"Doctor {doctor.name} already has an appointment at {time_slot} on {date}."
-            })
-
         return data
     
 

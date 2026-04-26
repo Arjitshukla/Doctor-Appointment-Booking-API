@@ -7,8 +7,12 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from datetime import datetime
-from .utils.slot_utils import get_available_slots
+from .utils.slot_utils import (
+    get_available_slots,
+    check_slot_and_suggest
+)
 from django.db import transaction
+from rest_framework import status
 
 
 class DoctorViewSet(ModelViewSet):
@@ -102,14 +106,15 @@ class AppointmentViewSet(ModelViewSet):
                 status=400
             )
 
-        #  slot already booked
-        if Appointment.objects.filter(
+        error = check_slot_and_suggest(
             doctor=appointment.doctor,
             date=serializer.validated_data["date"],
             time_slot=serializer.validated_data["time_slot"],
-            status=Appointment.Status.CONFIRMED
-        ).exclude(id=appointment.id).exists():
-            return Response({"error": "Slot already booked"}, status=400)
+            exclude_id=appointment.id
+        )
+
+        if error:
+            return Response(error, status=400)
 
         with transaction.atomic():
             appointment.status = Appointment.Status.CANCELLED
@@ -121,3 +126,25 @@ class AppointmentViewSet(ModelViewSet):
             "message": "Rescheduled successfully",
             "new_id": new_appointment.id
         })
+
+    #  Create Appointment
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        doctor = serializer.validated_data["doctor"]
+        date = serializer.validated_data["date"]
+        time_slot = serializer.validated_data["time_slot"]
+
+        #  reusable logic
+        error = check_slot_and_suggest(
+            doctor=doctor,
+            date=date,
+            time_slot=time_slot
+        )
+
+        if error:
+            return Response(error, status=400)
+
+        appointment = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

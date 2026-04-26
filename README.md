@@ -40,13 +40,41 @@ docker-compose exec web python manage.py createsuperuser
 
 ## API Endpoints
 
+### Authentication
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET/POST | `/api/doctors/` | List/Create doctors |
-| GET/PUT/DELETE | `/api/doctors/{id}/` | Retrieve/Update/Delete doctor |
-| GET/POST | `/api/appointments/` | List/Create appointments |
-| GET/PUT/DELETE | `/api/appointments/{id}/` | Retrieve/Update/Delete appointment |
-| GET/PUT/DELETE | `/api/appointments/?doctor={1}&date={2026-04-20}` | filter for doctor_id and date appointment |
+| POST | `/api/login/` | Obtain JWT access and refresh tokens |
+| POST | `/api/refresh/` | Refresh JWT access token |
+
+### Doctors
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/doctors/` | List all doctors |
+| POST | `/api/doctors/` | Create a new doctor |
+| GET | `/api/doctors/{id}/` | Retrieve a specific doctor |
+| PUT/PATCH | `/api/doctors/{id}/` | Update a doctor |
+| DELETE | `/api/doctors/{id}/` | Delete a doctor |
+| GET | `/api/doctors/{id}/available-slots/?date=YYYY-MM-DD` | Get available time slots for a doctor on a specific date |
+
+### Appointments
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/appointments/` | List all appointments (supports filtering by `doctor` and `date`) |
+| POST | `/api/appointments/` | Book a new appointment |
+| GET | `/api/appointments/{id}/` | Retrieve a specific appointment |
+| PUT/PATCH | `/api/appointments/{id}/` | Update an appointment |
+| DELETE | `/api/appointments/{id}/` | Cancel/delete an appointment |
+| PATCH | `/api/appointments/{id}/cancel/` | Mark appointment as cancelled |
+| PATCH | `/api/appointments/{id}/reschedule/` | Reschedule appointment (cancels old and creates new) |
+
+### Filtering Examples
+
+- `/api/appointments/?doctor=1` — filter by doctor ID
+- `/api/appointments/?date=2026-04-20` — filter by date
+- `/api/appointments/?doctor=1&date=2026-04-20` — filter by both doctor and date
 
 ## Development
 

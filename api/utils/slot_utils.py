@@ -29,15 +29,45 @@ def get_available_slots(doctor, date):
             current += timedelta(minutes=duration)
 
     #  Step 4: Booked slots fetch
-    booked_slots = Appointment.objects.filter(
+    booked_slots = set(Appointment.objects.filter(
         doctor=doctor,
         date=date,
-        status='Confirmed'
+        status=Appointment.Status.CONFIRMED
     ).values_list('time_slot', flat=True)
-
-    booked_slots = set(booked_slots)
-
+    )
+    
     #  Step 5: Available slots filter
     available_slots = [slot for slot in all_slots if slot not in booked_slots]
 
-    return available_slots
+    return sorted(available_slots)
+
+def get_next_available_slot(doctor, date):
+    slots = get_available_slots(doctor, date)
+    return slots[0] if slots else None
+
+
+def check_slot_and_suggest(doctor, date, time_slot, exclude_id=None):
+    qs = Appointment.objects.filter(
+        doctor=doctor,
+        date=date,
+        time_slot=time_slot,
+        status=Appointment.Status.CONFIRMED
+    )
+
+    if exclude_id:
+        qs = qs.exclude(id=exclude_id)
+
+    if qs.exists():
+        next_slot = get_next_available_slot(doctor, date)
+
+        if next_slot:
+            return {
+                "error": "Slot already  booked",
+                "next_available": next_slot.strftime("%H:%M")
+            }
+
+        return {
+            "error": "No slots available for this day"
+        }
+
+    return None
